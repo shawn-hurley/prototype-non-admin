@@ -1,0 +1,243 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.14.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+  name: prototype-non-admin.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: testing
+  displayName: testing
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - velero.io
+          resources:
+          - backupstoragelocations
+          - backups
+          - restores
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - velero.io
+          resources:
+          - backupstoragelocations/status
+          - backups/status
+          - restores/status
+          verbs:
+          - patch
+          - update
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - "*"
+        serviceAccountName: prototype-non-admin-controller-manager
+      deployments:
+      - name: prototype-non-admin-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                control-plane: controller-manager
+            spec:
+              containers:
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080/
+                - --logtostderr=true
+                - --v=10
+                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: https
+                  protocol: TCP
+                resources: {}
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
+                - /manager
+                image: quay.io/shawn_hurley/testing-non-admin:latest
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources:
+                  limits:
+                    cpu: 200m
+                    memory: 100Mi
+                  requests:
+                    cpu: 100m
+                    memory: 20Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+              securityContext:
+                runAsNonRoot: true
+              serviceAccountName: prototype-non-admin-controller-manager
+              terminationGracePeriodSeconds: 10
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - patch
+        serviceAccountName: prototype-non-admin-controller-manager
+    strategy: deployment
+  webhookdefinitions:
+  - type: ValidatingAdmissionWebhook
+    admissionReviewVersions:
+    - v1beta1
+    - v1
+    containerPort: 9443
+    targetPort: 9443
+    deploymentName: prototype-non-admin-controller-manager
+    failurePolicy: Fail
+    generateName: testing-nonadmin.kb.io
+    rules:
+    - apiGroups:
+      - velero.io
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - backupstoragelocations
+    sideEffects: None
+    webhookPath: /validating-backup-storage-location
+  - type: ValidatingAdmissionWebhook
+    admissionReviewVersions:
+    - v1beta1
+    - v1
+    containerPort: 9443
+    targetPort: 9443
+    deploymentName: prototype-non-admin-controller-manager
+    failurePolicy: Fail
+    generateName: testing-nonadmin-backup.kb.io
+    rules:
+    - apiGroups:
+      - velero.io
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - backups
+    sideEffects: None
+    webhookPath: /validating-backup
+  - type: ValidatingAdmissionWebhook
+    admissionReviewVersions:
+    - v1beta1
+    - v1
+    containerPort: 9443
+    targetPort: 9443
+    deploymentName: prototype-non-admin-controller-manager
+    failurePolicy: Fail
+    generateName: testing-nonadmin-restore.kb.io
+    rules:
+    - apiGroups:
+      - velero.io
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - restores
+    sideEffects: None
+    webhookPath: /validating-restore
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - testing
+  links:
+  - name: Prototype Non Admin
+    url: https://prototype-non-admin.domain
+  maintainers:
+  - email: shurley@redhat.com
+    name: shawn
+  maturity: alpha
+  provider:
+    name: redhat
+  version: 0.0.1
